@@ -21,6 +21,10 @@ __pycache__/
 .venv/
 venv/
 
+# Backtest market data (do not commit)
+mcp/data/
+*.csv
+
 # Never commit secrets
 *.token
 *.pat
