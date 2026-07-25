@@ -108,12 +108,28 @@ Real `XAUUSDun` (leverage 1:100):
 
 The combined system: no margin call anywhere, the calm period keeps its return at a
 third of the drawdown (52%→15%), and the shock period survives (halts at ~36% with
-+86% instead of dying). The filter only has NFP + weekend so far — adding real
-CPI/FOMC dates (a Forex Factory CSV into `data/news_events.csv`) should tighten the
-M5 further. Unscheduled headline shocks still rely on the circuit-breaker.
++86% instead of dying).
+
+### What actually pulls the weight (attribution, M1, baseline DD 52%)
+
+| Layer | Max DD | Return |
+|---|---|---|
+| Baseline | 52% | +1820% |
+| **Weekend-gap flatten only** | **15%** | +1799% |
+| News filter only (NFP+CPI+FOMC) | 52% | +1757% |
+| Both | 15% | +1736% |
+
+**The weekend-gap flatten does 100% of the drawdown reduction; the news calendar
+adds almost nothing.** We generated 71 real CPI/FOMC events
+(`generate_news_events.py`, verified 2025-2026) and it barely moved the needle —
+`news_flats` stayed ~25 and the M5 still blew up without the breaker, i.e. the M5
+killer move was **not a scheduled event**. Gold's big martingale drawdowns come from
+**holding a basket over the weekend gap**, not from news spikes (which are brief and
+revert). So the minimal effective anti-shock is **weekend-gap flatten + account
+circuit-breaker**; the economic-calendar filter is optional dead weight on this data.
 
 Config to reproduce the combined row:
-`XQ_NEWS_FILTER=true XQ_WEEKEND_GAP_GUARD=true XQ_MAX_DRAWDOWN_PCT=35`
+`XQ_WEEKEND_GAP_GUARD=true XQ_MAX_DRAWDOWN_PCT=35`  (news filter optional)
 
 ## Confirm the port with the MT5 Strategy Tester
 
