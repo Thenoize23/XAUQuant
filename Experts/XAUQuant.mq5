@@ -66,6 +66,15 @@ input double          InpMaxDrawdownPct = 25.0;        // Emergency: close ALL i
 input int             InpMaxSpreadPoints= 60;          // Skip new entries if spread > this
 input bool            InpHaltAfterStop  = true;        // Stop trading after an emergency close
 
+input group "=== Entry alert banner ==="
+input bool            InpShowBanner     = true;        // Show green/red alert banner on entry
+input int             InpBannerSeconds  = 6;           // Auto-hide banner after N seconds (0 = keep)
+input string          InpBuyMessage     = "BUY EXECUTED";   // Buy banner text (green)
+input string          InpSellMessage    = "SELL EXECUTED";  // Sell banner text (red)
+input bool            InpBannerEveryOrder = true;           // Flash on every order (false = only first level)
+input bool            InpAlertPopup     = false;       // Also fire MetaTrader Alert() popup
+input bool            InpAlertPush      = false;       // Also send push notification to phone
+
 //==================================================================
 //  Globals
 //==================================================================
@@ -85,6 +94,12 @@ ENUM_REGIME    g_regime      = REGIME_RANGE;
 int            g_buyConf     = 0;
 int            g_sellConf    = 0;
 double         g_momValue    = 0.0;
+
+// alert banner state
+datetime       g_bannerUntil = 0;      // banner visible until this time (0 = hidden)
+string         g_bannerText  = "";
+color          g_bannerClr   = clrLime;
+int            g_panelBottomY= 220;    // y of the panel bottom (set by DrawPanel)
 
 // persistent closed-baskets counter key
 string GVName() { return "XAUQuant_closed_" + g_symbol + "_" + (string)InpMagic; }
@@ -158,6 +173,8 @@ void OnTick()
 
    if(InpShowPanel)
       DrawPanel();
+
+   DrawBanner();   // independent of panel; auto-hides after InpBannerSeconds
 }
 
 //==================================================================
@@ -386,8 +403,68 @@ void OpenLevel(ENUM_POSITION_TYPE type, double lot, string tag)
              ? trade.Buy(lot, g_symbol, 0, 0, 0, tag)
              : trade.Sell(lot, g_symbol, 0, 0, 0, tag);
    if(!ok)
+   {
       Print("XAUQuant: order failed ", tag, " ret=", trade.ResultRetcode(),
             " ", trade.ResultRetcodeDescription());
+      return;
+   }
+   // fire the entry alert banner ("BUY EXECUTED" / "SELL EXECUTED")
+   if(InpBannerEveryOrder || tag=="xq-L0")
+      FireEntryAlert(type, lot);
+}
+
+//==================================================================
+//  Entry alert banner (green = buy, red = sell)
+//==================================================================
+void FireEntryAlert(ENUM_POSITION_TYPE type, double lot)
+{
+   bool isBuy = (type==POSITION_TYPE_BUY);
+   g_bannerText = (isBuy ? InpBuyMessage : InpSellMessage);
+   g_bannerClr  = (isBuy ? clrLime : clrTomato);
+   g_bannerUntil= (InpBannerSeconds>0) ? TimeCurrent()+InpBannerSeconds : D'2099.01.01';
+
+   string msg = StringFormat("%s | %s %.2f lots @ %s",
+                g_bannerText, g_symbol, lot,
+                DoubleToString(isBuy ? SymbolInfoDouble(g_symbol,SYMBOL_ASK)
+                                     : SymbolInfoDouble(g_symbol,SYMBOL_BID), g_digits));
+   Print("XAUQuant: ", msg);
+   if(InpAlertPopup) Alert(msg);
+   if(InpAlertPush)  SendNotification(msg);
+}
+
+void DrawBanner()
+{
+   string bg  = "xq_banner_bg";
+   string txt = "xq_banner_tx";
+
+   // hidden?
+   if(!InpShowBanner || g_bannerUntil==0 || TimeCurrent()>g_bannerUntil)
+   {
+      ObjectDelete(0, bg);
+      ObjectDelete(0, txt);
+      if(TimeCurrent()>g_bannerUntil) g_bannerUntil=0;
+      return;
+   }
+
+   int x=12, y=g_panelBottomY, w=250, h=22;   // anchored at the bottom of the panel
+
+   if(ObjectFind(0, bg)<0)
+   {
+      ObjectCreate(0, bg, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, bg, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, bg, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+      ObjectSetInteger(0, bg, OBJPROP_BACK, false);
+      ObjectSetInteger(0, bg, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, bg, OBJPROP_HIDDEN, true);
+   }
+   ObjectSetInteger(0, bg, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, bg, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, bg, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, bg, OBJPROP_YSIZE, h);
+   ObjectSetInteger(0, bg, OBJPROP_BGCOLOR, g_bannerClr);
+   ObjectSetInteger(0, bg, OBJPROP_COLOR, g_bannerClr);
+
+   Lbl("banner_tx", x+10, y+4, g_bannerText, clrBlack, 10, "Arial Bold");
 }
 
 void CloseBasket(ENUM_POSITION_TYPE type)
@@ -501,5 +578,8 @@ void DrawPanel()
    Lbl("closed", x, y, StringFormat("Closed baskets: %d%s",
        (int)GlobalVariableGet(GVName()), (g_halted?"   [HALTED]":"")),
        (g_halted?clrOrange:clrWhite), 9);
+   y+=dy+4;
+
+   g_panelBottomY = y;   // banner is anchored here (bottom of the panel)
 }
 //+------------------------------------------------------------------+

@@ -21,6 +21,7 @@ the *feature set* shown in a public "XAU QUANT" livestream demo.
 | **Basket exit** | Closes the **whole** basket once aggregate P/L hits the money/points target, then increments *Closed baskets*. |
 | **Guardrails** | Max levels cap, per-order lot cap, max-spread filter, and an **emergency equity-drawdown stop** that flattens everything. |
 | **Dashboard** | On-chart panel mimicking the reference: regime, confidence, long/short basket stats, momentum, balance/equity, closed baskets. |
+| **Entry alert banner** | On each order, flashes a strip at the **bottom of the panel**: green **`BUY EXECUTED`** / red **`SELL EXECUTED`**, auto-hiding after a few seconds; optional `Alert()` popup and push notification. |
 
 ## Why this is a *re-implementation*, not a copy
 
