@@ -88,6 +88,33 @@ target the *cause* of shocks, which for gold are mostly **scheduled**:
 
 The `shock_guard` config knobs remain available for experimentation.
 
+## The anti-shock system that works: time-filter + account circuit-breaker
+
+Two layers targeting different shock types:
+- **News/weekend time-filter** (`news_filter`, `weekend_gap_guard`): flatten and
+  pause around NFP (first Friday 13:30 UTC) and before the weekend gap. Regime-
+  neutral — cuts the drawdown of *scheduled* shocks without hurting calm markets.
+- **Account circuit-breaker** (`max_drawdown_pct` halt): last-resort backstop for
+  *unscheduled* shocks (geopolitics) the calendar can't know.
+
+Real `XAUUSDun` (leverage 1:100):
+
+| System | M5 (has a shock) | M1 (calm) | M15 (4.2y) |
+|---|---|---|---|
+| No protection | +39%, DD 53%, **BLEW UP** | +1820%, DD 52% | +2642%, DD 12% |
+| Loss-stop only (blunt) | +441%, DD 32% | **−98%** | — |
+| News+gap filter only | +31%, DD 54%, blew up | +1801%, **DD 15%** | — |
+| **Combined (filter + breaker)** | **+86%, DD 36%, halted (survived)** | **+1801%, DD 15%** | **+2566%, DD 12%** |
+
+The combined system: no margin call anywhere, the calm period keeps its return at a
+third of the drawdown (52%→15%), and the shock period survives (halts at ~36% with
++86% instead of dying). The filter only has NFP + weekend so far — adding real
+CPI/FOMC dates (a Forex Factory CSV into `data/news_events.csv`) should tighten the
+M5 further. Unscheduled headline shocks still rely on the circuit-breaker.
+
+Config to reproduce the combined row:
+`XQ_NEWS_FILTER=true XQ_WEEKEND_GAP_GUARD=true XQ_MAX_DRAWDOWN_PCT=35`
+
 ## Confirm the port with the MT5 Strategy Tester
 
 1. MetaTrader 5 → **View → Strategy Tester** (Ctrl+R).

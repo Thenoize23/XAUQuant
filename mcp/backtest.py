@@ -25,6 +25,7 @@ from typing import List
 import numpy as np
 
 import indicators as ind
+import calendar_filter as cal
 from config import Config
 from strategy import compute_signal, grid_step_price, next_level_lot, REGIME_TREND_UP, REGIME_TREND_DOWN
 
@@ -122,16 +123,22 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
     peak_equity = initial_balance
     long = Side("BUY"); short = Side("SELL")
 
-    closed = 0; wins = 0; stops = 0; max_levels = 0; max_vol = 0.0
+    # time-based anti-shock masks (precomputed once)
+    news_mask = cal.news_blackout_mask(t, cfg.news_pre_min, cfg.news_post_min,
+                                       cfg.news_use_nfp) if cfg.news_filter else None
+    gap_mask = cal.weekend_flatten_mask(t, cfg.weekend_gap_hours) if cfg.weekend_gap_guard else None
+
+    closed = 0; wins = 0; stops = 0; flats = 0; max_levels = 0; max_vol = 0.0
     max_dd = 0.0; blew_up = False; halted = False; halt_time = None
     cooldown = 0
 
-    def close_side(side: Side, price: float, is_stop: bool = False):
-        nonlocal balance, closed, wins, stops
+    def close_side(side: Side, price: float, kind: str = "auto"):
+        nonlocal balance, closed, wins, stops, flats
         pl = side.floating(price) - COMMISSION_PER_LOT * side.volume
         balance += pl
         closed += 1
-        if is_stop: stops += 1
+        if kind == "stop": stops += 1
+        elif kind == "flat": flats += 1
         elif pl > 0: wins += 1
         side.positions.clear()
 
@@ -144,6 +151,15 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
         shock_candle = cfg.shock_guard and atrv > 0 and bar_range > cfg.shock_atr_mult * atrv
         if cooldown > 0:
             cooldown -= 1
+
+        # ---- time-based anti-shock: flatten & pause inside news/weekend windows ----
+        blocked = (news_mask is not None and news_mask[i]) or (gap_mask is not None and gap_mask[i])
+        if blocked:
+            if long.positions:  close_side(long,  c[i] - spread, kind="flat")
+            if short.positions: close_side(short, c[i] + spread, kind="flat")
+            equity = balance
+            peak_equity = max(peak_equity, equity)
+            continue  # no adds, no entries while inside a protected window
 
         # ---- manage open baskets intrabar (stop, adds, TP) ----
         for side in (long, short):
@@ -165,7 +181,7 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
                         stop_hit = True
                 if stop_hit:
                     px = adverse - spread if is_buy else adverse + spread
-                    close_side(side, px, is_stop=True)
+                    close_side(side, px, kind="stop")
                     cooldown = cfg.shock_cooldown_bars
                     continue
 
@@ -241,6 +257,7 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
         "baskets_closed": closed,
         "win_rate_pct": round(wins / closed * 100, 1) if closed else 0.0,
         "stop_outs": stops,
+        "news_flats": flats,
         "max_grid_levels": max_levels,
         "max_basket_lots": round(max_vol, 2),
         "blew_up": blew_up,

@@ -71,6 +71,14 @@ class Config:
     shock_atr_mult: float = 3.0      # a bar whose range > this*ATR is a "shock candle"
     shock_cooldown_bars: int = 0     # after a stop-out, pause new entries for this many bars
 
+    # --- time-based anti-shock (flatten + pause around scheduled events) ---
+    news_filter: bool = False        # flatten & pause around high-impact news
+    news_pre_min: int = 30           # blackout starts this many minutes before the event
+    news_post_min: int = 30          # blackout ends this many minutes after
+    news_use_nfp: bool = True         # include NFP (first Friday 13:30 UTC) automatically
+    weekend_gap_guard: bool = False  # flatten before the weekend market-closed gap
+    weekend_gap_hours: int = 8       # a forward time gap > this = market closed
+
     # --- execution safety ---
     auto_trade: bool = False       # master switch; False = never sends live orders
     magic: int = 990045
