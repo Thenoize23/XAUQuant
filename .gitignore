@@ -1,0 +1,21 @@
+# MetaTrader / MQL5 build artifacts
+*.ex5
+*.ex4
+
+# MetaEditor
+*.log
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+
+# Never commit secrets
+*.token
+*.pat
+.env
