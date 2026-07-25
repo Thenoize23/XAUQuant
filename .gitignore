@@ -15,6 +15,12 @@ desktop.ini
 .vscode/
 .idea/
 
+# Python (MCP server)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
 # Never commit secrets
 *.token
 *.pat

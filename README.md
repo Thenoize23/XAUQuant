@@ -23,6 +23,15 @@ the *feature set* shown in a public "XAU QUANT" livestream demo.
 | **Dashboard** | On-chart panel mimicking the reference: regime, confidence, long/short basket stats, momentum, balance/equity, closed baskets. |
 | **Entry alert banner** | On each order, flashes a strip at the **bottom of the panel**: green **`BUY EXECUTED`** / red **`SELL EXECUTED`**, auto-hiding after a few seconds; optional `Alert()` popup and push notification. |
 
+## Two runtimes
+
+| Runtime | Path | Use when |
+|---|---|---|
+| **MT5 Expert Advisor** | `Experts/XAUQuant.mq5` | Your broker allows EAs attached to the chart. |
+| **MCP server (Python)** | [`mcp/`](mcp/) | Your broker blocks chart EAs but the MT5 terminal can still trade. Drives the same strategy from Python via the `MetaTrader5` package and exposes it to Claude as MCP tools — no EA on the chart. |
+
+Both share the same strategy logic (regime + confidence + basket grid + guardrails).
+
 ## Why this is a *re-implementation*, not a copy
 
 The reference video is a **sales livestream of a closed-source EA** — no code or exact rules
