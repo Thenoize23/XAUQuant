@@ -10,57 +10,63 @@ Tester on the EA is still worthwhile — matching numbers confirms the port.
 - Reuses the live signal engine (`strategy.compute_signal`) and the same config
   thresholds. Martingale basket simulated **intrabar**: grid adds on the bar's
   adverse extreme, basket take-profit on the favourable extreme.
-- Models spread (20 pts), leverage 1:100, and a broker **stop-out at 50% of used
-  margin** (blow-up). See the constants at the top of `backtest.py`.
-- Data: gold futures (`GC=F`) 1m/2m/5m pulled from Yahoo (free, but only ~7–60
-  days of intraday). **Short and recent** — this is the key caveat.
+- Models spread (20 pts), leverage 1:100, a broker **stop-out at 50% of used
+  margin** (blow-up), and — matching the EA's `InpHaltAfterStop` — **halts
+  trading after the drawdown guardrail fires** (`HALT_AFTER_STOP` in backtest.py).
+- Symbol/point/contract taken from the real broker: `XAUUSDun`, digits 2,
+  point 0.01, contract 100.
 
-## Results (default config, $10,000 start)
+## Headline: real TíoMarkets `XAUUSDun` data
 
-| Data | Bars | Net profit | Return | Max DD | Baskets | Win rate | Blew up? |
-|---|---|---|---|---|---|---|---|
-| Gold 1m (7d)  | 7,873  | +$41,117 | +411% | 4.6%  | 114 | 100% | no |
-| Gold 2m (60d) | 17,519 | +$45,238 | +452% | 18.0% | 297 | 100% | no |
-| Gold 5m (60d) | 13,783 | +$43,417 | +434% | 23.3% | 341 | 100% | no |
-| Synthetic + shocks (20k) | 20,000 | −$1,649 | −16% | 19.9% | 12 | 91.7% | **YES** |
+Pulled straight from the live terminal with `fetch_mt5_history.py`. The terminal
+caps history at 100k bars/timeframe, so higher timeframes reach further back.
 
-Stress variants on the 5m/2m set: turning the drawdown guardrail off changed
-nothing (it never triggered — DD peaked at 23.3%); a 2.0 lot multiplier looked
-*better* (+515% / +1524%, DD 3–4%) because doubling closes baskets faster — right
-up until the move that doesn't revert.
+**Guardrail ON (default 25% emergency stop):**
 
-## What this actually means (read this)
+| TF | Period | Return | Max DD | Baskets | Win% | Outcome |
+|---|---|---|---|---|---|---|
+| M1  | Apr–Jul 2026 (3.3 mo) | +233% | 30% | 330 | 99.7% | guard fired → **halted** 2026-05-11 |
+| M5  | Mar 2025–Jul 2026 (1.4 y) | +94% | 35% | 231 | 99.6% | guard fired → **halted** 2025-05-05 |
+| M15 | May 2022–Jul 2026 (4.2 y) | +2642% | 12% | 2044 | 100% | never halted |
 
-- **+400% with a 100% win rate is not a good sign — it's the martingale mirage.**
-  Averaging down wins almost every basket and draws a smooth rising equity curve…
-  until one sustained adverse move keeps stacking levels and wipes the account.
-- The real windows here were **kind**: gold chopped/trended-up enough that every
-  dip reverted. **None contained the killer scenario** (a long one-directional run
-  or a weekend gap). The 5m set already crept to **23.3% drawdown — one bad move
-  from the 25% guardrail flattening everything.**
-- The synthetic run *with shocks* is the honest preview: **91.7% win rate, then a
-  margin call.** That is how this strategy fails.
+**Guardrail OFF (does it really blow up?):**
+
+| TF | Return | Max DD | Outcome |
+|---|---|---|---|
+| M1 | +1820% | 52% | survived (barely) |
+| M5 | +39% | 53% | **BLEW UP — margin call** |
+
+## Two findings that matter
+
+**1. On real data it does blow up.** The M5 set (1.4 real years) took a **margin
+call** with no guardrail. With the guardrail it doesn't blow up, but it **trips the
+emergency stop** (halted May-2025 and May-2026) — i.e. it books a ~25–35% loss and
+switches itself off (needs a manual restart). That is the shock scenario the short
+Yahoo sample never contained.
+
+**2. The M15 "+2642%, 100% win" is a resolution artifact — distrust it.** The same
+kind of period shows **12% drawdown on M15 but 52% on M5**. Martingale drawdown
+happens *inside* the bar; 15-minute bars hide it. The finer the timeframe, the more
+realistic (and uglier) the picture — so **M1 is the trustworthy row, not M15.**
 
 ## Verdict
 
-On this data the strategy is **not proven profitable — it is proven to survive a
-short, favourable sample.** To trust it you need a real verdict over years of M1
-that include bad regimes (2020 crash, strong trends, gaps). Yahoo can't provide
-that; your MT5 terminal can:
+On the broker's own gold data the strategy makes money in good stretches
+(+94% to +233% before stopping), but within **1.4 real years it hit a margin call
+unprotected, and tripped its emergency stop twice when protected.** Real drawdowns
+run **30–52%**. It is a "win a lot until one shock takes half or all of the account"
+machine — now confirmed on real gold, not just synthetic.
 
-```
-python fetch_mt5_history.py --symbol XAUUSD --timeframe M1 --years 3 --out data/xauusd_m1.csv
-python backtest.py data/xauusd_m1.csv
-```
+## Earlier Yahoo sample (superseded, kept for reference)
 
-Then compare against the MT5 Strategy Tester (below). Treat any result with a
-100% win rate and a big return as a **risk profile to distrust**, not a green light.
+Gold futures `GC=F` 1m/2m/5m, 7–60 days: +411% to +452%, 100% win, no blow-up.
+That window was simply too short and too kind to contain a shock — which is exactly
+why the real multi-year `XAUUSDun` pull above matters.
 
-## Running the EA in the MT5 Strategy Tester (to confirm the port)
+## Confirm the port with the MT5 Strategy Tester
 
 1. MetaTrader 5 → **View → Strategy Tester** (Ctrl+R).
-2. Expert: `XAUQuant`, Symbol: `XAUUSD`, Period: `M1`, Model: **Every tick based on real ticks**.
-3. Set inputs to match the backtest (e.g. `InpMaxLevels=15`, `InpLotMultiplier=1.5`,
+2. Expert `XAUQuant`, Symbol `XAUUSDun`, Period `M1`, Model **Every tick based on real ticks**.
+3. Match inputs to the backtest (`InpMaxLevels=15`, `InpLotMultiplier=1.5`,
    `InpTargetMoney=50`, `InpMaxDrawdownPct=25`).
-4. Compare net profit / max drawdown / trade count with `backtest.py` on the same
-   period. Close numbers = the MQL5 EA and the Python MCP are equivalent.
+4. Close net-profit / max-drawdown / trade-count = MQL5 EA and Python MCP are equivalent.

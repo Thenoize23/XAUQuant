@@ -35,6 +35,7 @@ SPREAD_POINTS = 20      # round-trip spread assumption (points)
 COMMISSION_PER_LOT = 0.0  # per side, account currency
 LEVERAGE = 100.0
 STOP_OUT_LEVEL = 0.5    # equity < 50% of used margin -> broker stop-out
+HALT_AFTER_STOP = True  # match EA InpHaltAfterStop: stop trading after the DD guard fires
 
 
 @dataclass
@@ -122,7 +123,7 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
     long = Side("BUY"); short = Side("SELL")
 
     closed = 0; wins = 0; max_levels = 0; max_vol = 0.0
-    max_dd = 0.0; blew_up = False
+    max_dd = 0.0; blew_up = False; halted = False; halt_time = None
 
     def close_side(side: Side, price: float):
         nonlocal balance, closed, wins
@@ -173,7 +174,7 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
             cfg, adx_val=adx_a[i], plus_di=pdi_a[i], minus_di=mdi_a[i], rsi_val=rsi_a[i],
             bb_mid=bmid[i], bb_up=bup[i], bb_low=blo[i], price=c[i], mom=mom_a[i],
         )
-        if SPREAD_POINTS <= cfg.max_spread_points:
+        if not halted and SPREAD_POINTS <= cfg.max_spread_points:
             if not long.positions and cfg.allow_long and sig.buy_conf >= cfg.conf_threshold \
                     and sig.regime != REGIME_TREND_DOWN:
                 long.positions.append(Pos(c[i] + spread, cfg.base_lot))
@@ -187,10 +188,13 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
         dd = (peak_equity - equity) / peak_equity * 100 if peak_equity > 0 else 0
         max_dd = max(max_dd, dd)
 
-        # emergency drawdown guardrail (strategy)
-        if dd >= cfg.max_drawdown_pct and (long.positions or short.positions):
+        # emergency drawdown guardrail (strategy) — fires once, then halts like the EA
+        if not halted and dd >= cfg.max_drawdown_pct and (long.positions or short.positions):
             close_side(long, c[i] - spread) if long.positions else None
             close_side(short, c[i] + spread) if short.positions else None
+            if HALT_AFTER_STOP:
+                halted = True
+                halt_time = t[i]
 
         # broker stop-out (blow up)
         used = long.used_margin(c[i]) + short.used_margin(c[i])
@@ -214,6 +218,8 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
         "max_grid_levels": max_levels,
         "max_basket_lots": round(max_vol, 2),
         "blew_up": blew_up,
+        "halted": halted,
+        "halt_time": halt_time,
     }
     if verbose:
         print("\n=== XAUQuant backtest ===")
