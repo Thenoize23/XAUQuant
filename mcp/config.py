@@ -63,6 +63,14 @@ class Config:
     max_drawdown_pct: float = 25.0
     max_spread_points: int = 60
 
+    # --- anti-shock system (per-basket protection against runaway moves) ---
+    shock_guard: bool = False        # master switch for the anti-shock layer
+    basket_stop_pct: float = 0.0     # close basket if floating loss >= this % of balance (0=off)
+    basket_stop_atr: float = 0.0     # close basket if adverse move >= this*ATR beyond avg (0=off)
+    freeze_adds_on_shock: bool = True  # stop adding levels during a shock candle
+    shock_atr_mult: float = 3.0      # a bar whose range > this*ATR is a "shock candle"
+    shock_cooldown_bars: int = 0     # after a stop-out, pause new entries for this many bars
+
     # --- execution safety ---
     auto_trade: bool = False       # master switch; False = never sends live orders
     magic: int = 990045

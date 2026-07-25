@@ -122,30 +122,55 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
     peak_equity = initial_balance
     long = Side("BUY"); short = Side("SELL")
 
-    closed = 0; wins = 0; max_levels = 0; max_vol = 0.0
+    closed = 0; wins = 0; stops = 0; max_levels = 0; max_vol = 0.0
     max_dd = 0.0; blew_up = False; halted = False; halt_time = None
+    cooldown = 0
 
-    def close_side(side: Side, price: float):
-        nonlocal balance, closed, wins
+    def close_side(side: Side, price: float, is_stop: bool = False):
+        nonlocal balance, closed, wins, stops
         pl = side.floating(price) - COMMISSION_PER_LOT * side.volume
         balance += pl
         closed += 1
-        if pl > 0: wins += 1
+        if is_stop: stops += 1
+        elif pl > 0: wins += 1
         side.positions.clear()
 
     for i in range(warmup, n):
         if np.isnan(bmid[i]) or np.isnan(atr_a[i]):
             continue
         step = grid_step_price(cfg, atr_a[i], POINT)
+        atrv = atr_a[i]
+        bar_range = h[i] - l[i]
+        shock_candle = cfg.shock_guard and atrv > 0 and bar_range > cfg.shock_atr_mult * atrv
+        if cooldown > 0:
+            cooldown -= 1
 
-        # ---- manage open baskets intrabar (adds on adverse extreme, TP on favourable) ----
+        # ---- manage open baskets intrabar (stop, adds, TP) ----
         for side in (long, short):
             if not side.positions:
                 continue
             is_buy = side.direction == "BUY"
+            adverse = l[i] if is_buy else h[i]          # worst price this bar for the basket
 
-            # grid adds: adverse extreme reaches worst -/+ step (may add several)
-            if step > 0:
+            # --- ANTI-SHOCK basket stop (controlled loss instead of a margin call) ---
+            if cfg.shock_guard:
+                stop_hit = False
+                if cfg.basket_stop_atr > 0 and atrv > 0:
+                    dist = (side.avg - adverse) if is_buy else (adverse - side.avg)
+                    if dist >= cfg.basket_stop_atr * atrv:
+                        stop_hit = True
+                if cfg.basket_stop_pct > 0:
+                    fl = side.floating(adverse - spread if is_buy else adverse + spread)
+                    if fl <= -cfg.basket_stop_pct / 100.0 * balance:
+                        stop_hit = True
+                if stop_hit:
+                    px = adverse - spread if is_buy else adverse + spread
+                    close_side(side, px, is_stop=True)
+                    cooldown = cfg.shock_cooldown_bars
+                    continue
+
+            # grid adds: adverse extreme reaches worst -/+ step (frozen during a shock candle)
+            if step > 0 and not (shock_candle and cfg.freeze_adds_on_shock):
                 while side.levels < cfg.max_levels:
                     trig = side.worst - step if is_buy else side.worst + step
                     reached = (l[i] <= trig) if is_buy else (h[i] >= trig)
@@ -174,7 +199,7 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
             cfg, adx_val=adx_a[i], plus_di=pdi_a[i], minus_di=mdi_a[i], rsi_val=rsi_a[i],
             bb_mid=bmid[i], bb_up=bup[i], bb_low=blo[i], price=c[i], mom=mom_a[i],
         )
-        if not halted and SPREAD_POINTS <= cfg.max_spread_points:
+        if not halted and cooldown == 0 and SPREAD_POINTS <= cfg.max_spread_points:
             if not long.positions and cfg.allow_long and sig.buy_conf >= cfg.conf_threshold \
                     and sig.regime != REGIME_TREND_DOWN:
                 long.positions.append(Pos(c[i] + spread, cfg.base_lot))
@@ -215,6 +240,7 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
         "max_drawdown_pct": round(max_dd, 2),
         "baskets_closed": closed,
         "win_rate_pct": round(wins / closed * 100, 1) if closed else 0.0,
+        "stop_outs": stops,
         "max_grid_levels": max_levels,
         "max_basket_lots": round(max_vol, 2),
         "blew_up": blew_up,

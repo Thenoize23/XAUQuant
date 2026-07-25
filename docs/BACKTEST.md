@@ -63,6 +63,31 @@ Gold futures `GC=F` 1m/2m/5m, 7–60 days: +411% to +452%, 100% win, no blow-up.
 That window was simply too short and too kind to contain a shock — which is exactly
 why the real multi-year `XAUUSDun` pull above matters.
 
+## Anti-shock experiments (honest: no free lunch)
+
+The martingale's only failure mode is a sustained adverse shock. We tested a
+per-basket protection layer (`shock_guard`: % stop-loss, ATR-distance stop,
+freeze-adds on a >N×ATR "shock candle", post-stop cooldown) on real `XAUUSDun`.
+
+| Config | M5 (1.4y, *has* a shock) | M1 (3.3mo, *calm*) |
+|---|---|---|
+| No protection | +39%, DD 53%, **BLEW UP** | +1820%, DD 52%, survived |
+| Anti-shock (5% stop, 8 levels, cooldown) | **+441%, DD 32%, survived** | **−98%, DD 99%** |
+
+The same protection that saves the shock period **wrecks the calm period**: a
+loss-based stop converts would-be-winners into realised losers, which bleeds a
+martingale dry when there is no shock. Volatility-candle *freeze-only* didn't
+reliably prevent the blow-up either. **A blunt stop can't tell "normal grid
+drawdown that reverts" from "a real shock that doesn't."**
+
+Conclusion: chasing stop parameters is a dead end. A principled anti-shock must
+target the *cause* of shocks, which for gold are mostly **scheduled**:
+- an **economic-calendar / time filter** (pause entries + freeze the grid ±30 min
+  around NFP / CPI / FOMC) — regime-neutral, fires only on real risk;
+- **weekend-gap protection** (cut/reduce baskets before Friday close).
+
+The `shock_guard` config knobs remain available for experimentation.
+
 ## Confirm the port with the MT5 Strategy Tester
 
 1. MetaTrader 5 → **View → Strategy Tester** (Ctrl+R).
