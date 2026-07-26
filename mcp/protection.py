@@ -26,8 +26,8 @@ def weekend_block(now: datetime, cfg: Config) -> bool:
         return minutes >= close_min
     if dow == 5:                       # Saturday
         return True
-    if dow == 6:                       # Sunday: before reopen
-        return minutes < cfg.weekend_sun_reopen_hour * 60
+    if dow == 6:                       # Sunday: before reopen + a post-open settle buffer
+        return minutes < cfg.weekend_sun_reopen_hour * 60 + cfg.weekend_reopen_buffer_min
     return False
 
 

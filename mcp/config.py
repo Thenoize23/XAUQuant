@@ -88,6 +88,7 @@ class Config:
     weekend_fri_close_hour: int = 20 # UTC hour gold stops on Friday
     weekend_pre_min: int = 60        # start flattening this many minutes before Friday close
     weekend_sun_reopen_hour: int = 22  # UTC hour gold reopens on Sunday
+    weekend_reopen_buffer_min: int = 30  # wait this many min after reopen (let spread/gap settle)
 
     # --- execution safety ---
     auto_trade: bool = False       # master switch; False = never sends live orders
