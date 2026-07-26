@@ -79,6 +79,12 @@ class Config:
     weekend_gap_guard: bool = False  # flatten before the weekend market-closed gap
     weekend_gap_hours: int = 8       # a forward time gap > this = market closed
 
+    # --- weekend flatten for LIVE trading (schedule-based, UTC) ---
+    weekend_flatten: bool = True     # live: flatten & pause around the weekend
+    weekend_fri_close_hour: int = 20 # UTC hour gold stops on Friday
+    weekend_pre_min: int = 60        # start flattening this many minutes before Friday close
+    weekend_sun_reopen_hour: int = 22  # UTC hour gold reopens on Sunday
+
     # --- execution safety ---
     auto_trade: bool = False       # master switch; False = never sends live orders
     magic: int = 990045

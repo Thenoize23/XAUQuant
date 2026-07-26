@@ -22,6 +22,7 @@ the *feature set* shown in a public "XAU QUANT" livestream demo.
 | **Guardrails** | Max levels cap, per-order lot cap, max-spread filter, and an **emergency equity-drawdown stop** that flattens everything. |
 | **Dashboard** | On-chart panel mimicking the reference: regime, confidence, long/short basket stats, momentum, balance/equity, closed baskets. |
 | **Entry alert banner** | On each order, flashes a strip at the **bottom of the panel**: green **`BUY EXECUTED`** / red **`SELL EXECUTED`**, auto-hiding after a few seconds; optional `Alert()` popup and push notification. |
+| **Anti-shock** | **Weekend flatten** (close & pause across the Fri-close→Sun-reopen gap — the biggest drawdown source) + **circuit-breaker halt** on equity drawdown. Backtested on real `XAUUSDun`: cuts drawdown ~52%→15% and turns a margin call into a survivable stop. See [`docs/BACKTEST.md`](docs/BACKTEST.md). |
 
 ## Two runtimes
 

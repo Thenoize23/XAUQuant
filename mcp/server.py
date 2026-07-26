@@ -9,8 +9,11 @@ Deps: pip install -r requirements.txt   (needs a running, logged-in MT5 terminal
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from mcp.server.fastmcp import FastMCP
 
+import protection
 from config import Config
 from mt5_client import MT5Client, MT5Error
 from strategy import compute_signal, plan_actions
@@ -20,7 +23,11 @@ client = MT5Client(cfg)
 mcp = FastMCP("xauquant")
 
 # runtime state kept across tool calls
-_state = {"peak_equity": 0.0, "connected": False}
+_state = {"peak_equity": 0.0, "connected": False, "halted": False}
+
+
+def _now_utc():
+    return datetime.now(timezone.utc)
 
 
 def _ensure_connected():
@@ -98,7 +105,8 @@ def basket_state() -> dict:
 
 @mcp.tool()
 def plan_next_action() -> dict:
-    """What the strategy would do right now (does NOT execute): OPEN/ADD/CLOSE/HOLD."""
+    """What the strategy would do right now (does NOT execute): OPEN/ADD/CLOSE/HOLD.
+    Applies the anti-shock layer: weekend flatten window and the circuit-breaker halt."""
     _ensure_connected()
     snap = client.snapshot()
     sig = _signal_from_snapshot(snap)
@@ -106,16 +114,59 @@ def plan_next_action() -> dict:
     _state["peak_equity"] = max(_state["peak_equity"], acct["equity"])
     long_b = client.basket("BUY")
     short_b = client.basket("SELL")
+
+    # --- anti-shock: weekend / news protection window -> flatten & pause ---
+    block = protection.protection_reason(_now_utc(), cfg)
+    if block:
+        acts = []
+        if long_b.levels:  acts.append({"action": "CLOSE", "direction": "BUY",  "lots": round(long_b.volume, 2), "reason": block})
+        if short_b.levels: acts.append({"action": "CLOSE", "direction": "SELL", "lots": round(short_b.volume, 2), "reason": block})
+        if not acts:
+            acts = [{"action": "HOLD", "direction": "", "lots": 0.0, "reason": block + " (flat)"}]
+        return {"regime": sig.regime, "buy_conf": sig.buy_conf, "sell_conf": sig.sell_conf,
+                "protection": block, "actions": acts, "auto_trade": cfg.auto_trade}
+
     actions = plan_actions(
         cfg, sig, bid=snap["bid"], ask=snap["ask"], spread_points=snap["spread_points"],
         atr_value=snap["atr"], point=snap["point"], long_basket=long_b, short_basket=short_b,
         equity=acct["equity"], peak_equity=_state["peak_equity"],
     )
+    out = [a.to_dict() for a in actions]
+
+    # circuit-breaker halt: once the guard flattens, stay halted (no reopen) until resume
+    if any(a["action"] == "EMERGENCY_CLOSE" for a in out):
+        _state["halted"] = True
+    if _state["halted"]:
+        out = [a for a in out if a["action"] not in ("OPEN", "ADD")] or \
+              [{"action": "HOLD", "direction": "", "lots": 0.0, "reason": "HALTED (circuit-breaker) — call resume_trading"}]
+
     return {
         "regime": sig.regime, "buy_conf": sig.buy_conf, "sell_conf": sig.sell_conf,
-        "actions": [a.to_dict() for a in actions],
-        "auto_trade": cfg.auto_trade,
+        "halted": _state["halted"], "actions": out, "auto_trade": cfg.auto_trade,
     }
+
+
+@mcp.tool()
+def protection_status() -> dict:
+    """Show whether trading is currently paused (weekend/news window or circuit-breaker halt)."""
+    now = _now_utc()
+    return {
+        "utc_now": now.strftime("%Y-%m-%d %H:%M UTC"),
+        "weekend_block": protection.weekend_block(now, cfg),
+        "news_block": protection.news_block(now, cfg),
+        "halted": _state["halted"],
+        "weekend_flatten_enabled": cfg.weekend_flatten,
+        "news_filter_enabled": cfg.news_filter,
+        "max_drawdown_pct": cfg.max_drawdown_pct,
+    }
+
+
+@mcp.tool()
+def resume_trading() -> dict:
+    """Clear the circuit-breaker halt so the bot can open baskets again."""
+    _state["halted"] = False
+    _state["peak_equity"] = client.account()["equity"] if _state["connected"] else 0.0
+    return {"halted": False, "peak_equity_reset": _state["peak_equity"]}
 
 
 @mcp.tool()

@@ -66,6 +66,12 @@ input double          InpMaxDrawdownPct = 25.0;        // Emergency: close ALL i
 input int             InpMaxSpreadPoints= 60;          // Skip new entries if spread > this
 input bool            InpHaltAfterStop  = true;        // Stop trading after an emergency close
 
+input group "=== Weekend-gap protection (anti-shock) ==="
+input bool            InpWeekendFlatten = true;        // Flatten & pause around the weekend
+input int             InpFriCloseHourGMT= 20;          // GMT hour gold stops on Friday
+input int             InpWeekendPreMin  = 60;          // Start flattening this many min before close
+input int             InpSunReopenHourGMT= 22;         // GMT hour gold reopens on Sunday
+
 input group "=== Entry alert banner ==="
 input bool            InpShowBanner     = true;        // Show green/red alert banner on entry
 input int             InpBannerSeconds  = 6;           // Auto-hide banner after N seconds (0 = keep)
@@ -158,11 +164,19 @@ void OnTick()
    // Guardrail: equity drawdown emergency stop
    CheckDrawdownGuard();
 
+   // Anti-shock: flatten & pause across the weekend gap
+   bool weekend = InpWeekendFlatten && IsWeekendBlock();
+   if(weekend)
+   {
+      CloseBasket(POSITION_TYPE_BUY);
+      CloseBasket(POSITION_TYPE_SELL);
+   }
+
    // Signals & new entries only once per bar
    if(IsNewBar())
    {
       UpdateSignals();
-      if(!g_halted)
+      if(!g_halted && !weekend)
       {
          TryEntry(POSITION_TYPE_BUY);
          TryEntry(POSITION_TYPE_SELL);
@@ -175,6 +189,21 @@ void OnTick()
       DrawPanel();
 
    DrawBanner();   // independent of panel; auto-hides after InpBannerSeconds
+}
+
+//==================================================================
+//  Weekend-gap protection: true inside the flatten/pause window (GMT)
+//==================================================================
+bool IsWeekendBlock()
+{
+   MqlDateTime dt;
+   TimeToStruct(TimeGMT(), dt);       // dt.day_of_week: 0=Sun .. 5=Fri, 6=Sat
+   int minutes = dt.hour*60 + dt.min;
+   int closeMin = InpFriCloseHourGMT*60 - InpWeekendPreMin;
+   if(dt.day_of_week==5) return (minutes >= closeMin);              // Friday, pre-close
+   if(dt.day_of_week==6) return true;                              // Saturday
+   if(dt.day_of_week==0) return (minutes < InpSunReopenHourGMT*60); // Sunday, before reopen
+   return false;
 }
 
 //==================================================================
@@ -575,9 +604,11 @@ void DrawPanel()
 
    Lbl("acct", x, y, StringFormat("Balance %.2f   Equity %.2f",
        AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY)), clrWhite, 9); y+=dy;
+   string flag = g_halted ? "   [HALTED]" :
+                 ((InpWeekendFlatten && IsWeekendBlock()) ? "   [WEEKEND]" : "");
    Lbl("closed", x, y, StringFormat("Closed baskets: %d%s",
-       (int)GlobalVariableGet(GVName()), (g_halted?"   [HALTED]":"")),
-       (g_halted?clrOrange:clrWhite), 9);
+       (int)GlobalVariableGet(GVName()), flag),
+       (g_halted?clrOrange:(flag!=""?clrAqua:clrWhite)), 9);
    y+=dy+4;
 
    g_panelBottomY = y;   // banner is anchored here (bottom of the panel)

@@ -36,6 +36,19 @@ confidence, grid and guardrail logic).
 | `place_order` | Manual single BUY/SELL market order. |
 | `close_basket` / `emergency_close_all` | Close one/both baskets. |
 | `set_auto_trade` | Toggle live execution for the session. |
+| `protection_status` | Show anti-shock state (weekend window / news / circuit-breaker halt). |
+| `resume_trading` | Clear the circuit-breaker halt so the bot can open baskets again. |
+
+### Anti-shock (built into `plan_next_action`)
+
+- **Weekend flatten** (`weekend_flatten`, default on): inside the Friday-close→Sunday-reopen
+  window the plan flattens open baskets and opens nothing. This did ~all the drawdown
+  reduction in backtest (52%→15%). Schedule via `weekend_fri_close_hour`,
+  `weekend_pre_min`, `weekend_sun_reopen_hour` (UTC).
+- **Circuit-breaker halt** (`max_drawdown_pct`): once the equity guard flattens, the
+  session stays **halted** (no new baskets) until you call `resume_trading` — this is
+  what prevents the margin call on an unscheduled shock.
+- **News filter** (`news_filter`, default off): optional; backtest showed it adds little.
 
 Closes (including the drawdown guardrail) run even without `confirm`; **opening**
 new orders needs both `auto_trade=true` and `confirm=true`.
