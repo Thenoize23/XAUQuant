@@ -48,7 +48,7 @@ string   g_bannerText="";
 color    g_bannerClr=clrLime;
 int      g_panelBottomY=220;
 
-#define MOMN 22
+#define MOMN 15
 double   g_mval[MOMN];        // per-bar momentum VALUES (fixed once sampled -> bars only scroll)
 double   g_lastBid=0;
 double   g_scale=0;           // slow-adapting scale so bars fill nicely without jumping
@@ -210,15 +210,16 @@ void DrawMomentum(int x,int y,int w,int h)
 {
    Box("momcard",x,y,w,h,(color)C'30,32,38',(color)C'55,58,66');   // gray card
    double scale=(g_scale>0? g_scale : SymbolInfoDouble(g_symbol,SYMBOL_POINT));
-   int bw=w/MOMN, mid=y+h/2, cap=h/2;
+   int mid=y+h/2, cap=h/2;
    for(int i=0;i<MOMN;i++){
       double v=g_mval[i];                             // fixed value for this bar
       int bh=(int)(MathAbs(v)/scale*(h/2)*3.0);       // zoomed to max
       if(bh>cap) bh=cap; if(bh<1) bh=1;               // clip at the card edge
       color c=v>=0?clrLime:clrOrange;
-      int bx=x+i*bw;
-      int by=v>=0? mid-bh : mid;
-      Box("mom"+(string)i, bx, by, MathMax(bw-1,1), bh, c, c);
+      int bx =x+(i*w)/MOMN;                            // even distribution -> consistent width
+      int bxn=x+((i+1)*w)/MOMN;
+      int by =v>=0? mid-bh : mid;
+      Box("mom"+(string)i, bx, by, MathMax(bxn-bx-2,1), bh, c, c);
    }
 }
 
