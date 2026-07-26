@@ -170,32 +170,89 @@ void Lbl(string name,int x,int y,string text,color clr,int size=9,string font="C
    ObjectSetString(0,o,OBJPROP_FONT,font); ObjectSetString(0,o,OBJPROP_TEXT,text);
 }
 
+void Box(string name,int x,int y,int w,int h,color bg,color border)
+{
+   string o="xqp_"+name;
+   if(ObjectFind(0,o)<0){
+      ObjectCreate(0,o,OBJ_RECTANGLE_LABEL,0,0,0);
+      ObjectSetInteger(0,o,OBJPROP_CORNER,CORNER_LEFT_UPPER);
+      ObjectSetInteger(0,o,OBJPROP_BACK,false);
+      ObjectSetInteger(0,o,OBJPROP_SELECTABLE,false);
+      ObjectSetInteger(0,o,OBJPROP_HIDDEN,true);
+      ObjectSetInteger(0,o,OBJPROP_BORDER_TYPE,BORDER_FLAT);
+   }
+   ObjectSetInteger(0,o,OBJPROP_XDISTANCE,x); ObjectSetInteger(0,o,OBJPROP_YDISTANCE,y);
+   ObjectSetInteger(0,o,OBJPROP_XSIZE,MathMax(w,1)); ObjectSetInteger(0,o,OBJPROP_YSIZE,MathMax(h,1));
+   ObjectSetInteger(0,o,OBJPROP_BGCOLOR,bg); ObjectSetInteger(0,o,OBJPROP_COLOR,border);
+}
+
+void DrawMomentum(int x,int y,int w,int h)
+{
+   int n=28; double m[];
+   if(CopyBuffer(h_mom,0,1,n,m)!=n) return;
+   ArraySetAsSeries(m,true);
+   double maxdev=0.001;
+   for(int i=0;i<n;i++) maxdev=MathMax(maxdev,MathAbs(m[i]-100.0));
+   int bw=w/n, mid=y+h/2;
+   for(int i=0;i<n;i++){
+      double dev=m[i]-100.0;
+      int bh=(int)(MathAbs(dev)/maxdev*(h/2));
+      color c=dev>=0?clrLime:clrOrange;
+      int bx=x+(n-1-i)*bw;
+      int by=dev>=0? mid-bh : mid;
+      Box("mom"+(string)i, bx, by, bw-1, MathMax(bh,1), c, c);
+   }
+}
+
 void DrawPanel()
 {
-   int x=12,y=20,dy=16;
-   Lbl("title",x,y,"XAU QUANT | "+g_symbol,clrGold,11); y+=dy+4;
+   color PANEL=(color)C'14,16,22', SUB=(color)C'26,30,38', BAR=(color)C'45,50,60';
+   int X=8,Y=16,W=344,H=336;
+   Box("bg",X,Y,W,H,PANEL,(color)C'70,80,95');
+
+   Lbl("title",X+10,Y+6,"XAU QUANT | "+g_symbol,clrGold,11,"Arial Bold");
+
+   // REGIME highlighted bar
    string reg=(g_regime==REGIME_RANGE)?"RANGE":(g_regime==REGIME_TREND_UP?"TREND UP":"TREND DOWN");
-   color rc=(g_regime==REGIME_RANGE)?clrSilver:(g_regime==REGIME_TREND_UP?clrLime:clrTomato);
-   Lbl("regime",x,y,"REGIME: "+reg,rc,10); y+=dy;
-   Lbl("conf",x,y,StringFormat("BUY CONF %d    SELL CONF %d",g_buyConf,g_sellConf),clrWhite,10); y+=dy+2;
+   color rc=(g_regime==REGIME_RANGE)?(color)C'90,90,110':(g_regime==REGIME_TREND_UP?(color)C'20,90,40':(color)C'110,35,35');
+   Box("regbar",X+8,Y+30,W-16,20,rc,rc);
+   Lbl("regime",X+14,Y+33,"REGIME: "+reg,clrWhite,10,"Arial Bold");
 
+   double bid=SymbolInfoDouble(g_symbol,SYMBOL_BID), ask=SymbolInfoDouble(g_symbol,SYMBOL_ASK);
+   Lbl("quote",X+14,Y+56,StringFormat("Bid %.*f  Ask %.*f  Spread %.0f",g_digits,bid,g_digits,ask,
+       (ask-bid)/SymbolInfoDouble(g_symbol,SYMBOL_POINT)),(color)C'160,160,175',9);
+
+   // Confidence with progress bars
+   Lbl("cbuy",X+14,Y+76,StringFormat("BUY CONF  %d",g_buyConf),clrWhite,9);
+   Box("cbuybg",X+14,Y+94,150,9,BAR,BAR);
+   Box("cbuybar",X+14,Y+94,(int)(150.0*g_buyConf/100.0),9,clrLime,clrLime);
+   Lbl("csell",X+185,Y+76,StringFormat("SELL CONF  %d",g_sellConf),clrWhite,9);
+   Box("csellbg",X+185,Y+94,150,9,BAR,BAR);
+   Box("csellbar",X+185,Y+94,(int)(150.0*g_sellConf/100.0),9,clrTomato,clrTomato);
+
+   // LONG basket box
    int Lv;double Lvol,Lavg,Lpl; BasketStats(POSITION_TYPE_BUY,Lv,Lvol,Lavg,Lpl);
-   Lbl("long",x,y,"LONG BASKET",clrLime,10); y+=dy;
-   if(Lv>0) Lbl("longd",x,y,StringFormat("Lv %d  Avg %.*f  Vol %.2f  P/L %.2f",Lv,g_digits,Lavg,Lvol,Lpl),(Lpl>=0?clrLime:clrTomato),9);
-   else     Lbl("longd",x,y,"no basket open",clrGray,9);
-   y+=dy+2;
+   Box("lbox",X+8,Y+112,W-16,46,SUB,(color)C'30,110,55');
+   Lbl("long",X+14,Y+116,"LONG BASKET",clrLime,10,"Arial Bold");
+   if(Lv>0) Lbl("longd",X+14,Y+136,StringFormat("Lv %d   Avg %.*f   Vol %.2f   P/L %.2f",Lv,g_digits,Lavg,Lvol,Lpl),(Lpl>=0?clrLime:clrTomato),9);
+   else     Lbl("longd",X+14,Y+136,"no basket open",(color)C'120,120,130',9);
 
+   // SHORT basket box
    int Sv;double Svol,Savg,Spl; BasketStats(POSITION_TYPE_SELL,Sv,Svol,Savg,Spl);
-   Lbl("short",x,y,"SHORT BASKET",clrTomato,10); y+=dy;
-   if(Sv>0) Lbl("shortd",x,y,StringFormat("Lv %d  Avg %.*f  Vol %.2f  P/L %.2f",Sv,g_digits,Savg,Svol,Spl),(Spl>=0?clrLime:clrTomato),9);
-   else     Lbl("shortd",x,y,"no basket open",clrGray,9);
-   y+=dy+2;
+   Box("sbox",X+8,Y+164,W-16,46,SUB,(color)C'130,40,40');
+   Lbl("short",X+14,Y+168,"SHORT BASKET",clrTomato,10,"Arial Bold");
+   if(Sv>0) Lbl("shortd",X+14,Y+188,StringFormat("Lv %d   Avg %.*f   Vol %.2f   P/L %.2f",Sv,g_digits,Savg,Svol,Spl),(Spl>=0?clrLime:clrTomato),9);
+   else     Lbl("shortd",X+14,Y+188,"no basket open",(color)C'120,120,130',9);
 
-   Lbl("mom",x,y,StringFormat("MOMENTUM %.2f",g_momValue),clrAqua,9); y+=dy+2;
-   Lbl("acct",x,y,StringFormat("Balance %.2f   Equity %.2f",
-       AccountInfoDouble(ACCOUNT_BALANCE),AccountInfoDouble(ACCOUNT_EQUITY)),clrWhite,9); y+=dy;
-   Lbl("closed",x,y,StringFormat("Closed baskets: %d",(int)GlobalVariableGet(GVName())),clrWhite,9);
-   y+=dy+4; g_panelBottomY=y;
+   // MOMENTUM histogram
+   Lbl("momlbl",X+14,Y+216,"MOMENTUM",(color)C'150,150,165',9);
+   DrawMomentum(X+14,Y+234,W-28,38);
+
+   Lbl("acct",X+14,Y+280,StringFormat("Balance %.2f   Equity %.2f",
+       AccountInfoDouble(ACCOUNT_BALANCE),AccountInfoDouble(ACCOUNT_EQUITY)),clrWhite,9);
+   Lbl("closed",X+14,Y+300,StringFormat("Closed baskets: %d",(int)GlobalVariableGet(GVName())),(color)C'170,170,185',9);
+
+   g_panelBottomY=Y+H+4;
 }
 
 void DrawBanner()
