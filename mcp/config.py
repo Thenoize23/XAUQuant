@@ -43,6 +43,7 @@ class Config:
     conf_threshold: int = 60       # 0-100 needed to open a basket
     mom_period: int = 14
     signal_mode: str = "reversion" # "reversion" (buy dips) | "trend" (buy strength)
+    trend_exit: bool = True        # close a basket (stop averaging) if regime turns against it
 
     # --- basket / grid (martingale) ---
     lot_mode: str = "multiplier"   # "fixed" | "multiplier"

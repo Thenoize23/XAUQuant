@@ -153,6 +153,12 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
         if cooldown > 0:
             cooldown -= 1
 
+        # current regime (for trend-exit)
+        if atr_a[i] and adx_a[i] < cfg.adx_trend_level:
+            regime = "RANGE"
+        else:
+            regime = REGIME_TREND_UP if pdi_a[i] >= mdi_a[i] else REGIME_TREND_DOWN
+
         # ---- time-based anti-shock: flatten & pause inside news/weekend windows ----
         blocked = (news_mask is not None and news_mask[i]) or (gap_mask is not None and gap_mask[i])
         if blocked:
@@ -168,6 +174,15 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
                 continue
             is_buy = side.direction == "BUY"
             adverse = l[i] if is_buy else h[i]          # worst price this bar for the basket
+
+            # --- TREND-EXIT: cut a basket the regime opposes (don't average against trend) ---
+            if cfg.trend_exit:
+                against = (is_buy and regime == REGIME_TREND_DOWN) or \
+                          (not is_buy and regime == REGIME_TREND_UP)
+                if against:
+                    px = adverse - spread if is_buy else adverse + spread
+                    close_side(side, px, kind="trend")
+                    continue
 
             # --- ANTI-SHOCK basket stop (controlled loss instead of a margin call) ---
             if cfg.shock_guard:

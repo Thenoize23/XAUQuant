@@ -141,6 +141,15 @@ def plan_actions(cfg: Config, sig: Signal, *, bid: float, ask: float,
 
         # 2) EXIT: close whole basket at target
         if b.is_open:
+            # trend-exit: don't average against the trend — cut a basket the regime opposes
+            if cfg.trend_exit:
+                against = (is_buy and sig.regime == REGIME_TREND_DOWN) or \
+                          (not is_buy and sig.regime == REGIME_TREND_UP)
+                if against:
+                    actions.append(Action("CLOSE", b.direction, b.volume,
+                                          f"regime {sig.regime} against {b.direction} basket"))
+                    continue
+
             if cfg.target_mode == "money":
                 if b.pl >= cfg.target_money:
                     actions.append(Action("CLOSE", b.direction, b.volume,
