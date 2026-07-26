@@ -48,7 +48,7 @@ string   g_bannerText="";
 color    g_bannerClr=clrLime;
 int      g_panelBottomY=220;
 
-#define MOMN 62
+#define MOMN 22
 double   g_mval[MOMN];        // per-bar momentum VALUES (fixed once sampled -> bars only scroll)
 double   g_lastBid=0;
 double   g_scale=0;           // slow-adapting scale so bars fill nicely without jumping
