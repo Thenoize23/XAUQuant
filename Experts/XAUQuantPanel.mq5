@@ -48,10 +48,10 @@ string   g_bannerText="";
 color    g_bannerClr=clrLime;
 int      g_panelBottomY=220;
 
-#define MOMN 40
+#define MOMN 62
 double   g_mval[MOMN];        // per-bar momentum VALUES (fixed once sampled -> bars only scroll)
 double   g_lastBid=0;
-double   g_scale=0;           // stable scale (increase-only) so bars don't resize each tick
+double   g_scale=0;           // slow-adapting scale so bars fill nicely without jumping
 
 string GVName() { return "XAUQuantPanel_closed_"+g_symbol+"_"+(string)InpMagic; }
 
@@ -102,7 +102,8 @@ void PushTick()
    g_lastBid=bid;
    for(int i=0;i<MOMN-1;i++) g_mval[i]=g_mval[i+1];
    g_mval[MOMN-1]=delta;
-   if(MathAbs(delta)>g_scale) g_scale=MathAbs(delta);   // scale only grows -> stable
+   // slow-adapting scale: grows on a bigger move, decays very slowly otherwise
+   g_scale=MathMax(g_scale*0.999, MathAbs(delta));
 }
 
 //==================================================================
@@ -208,16 +209,16 @@ void Box(string name,int x,int y,int w,int h,color bg,color border)
 
 void DrawMomentum(int x,int y,int w,int h)
 {
+   // dense bars rising from the bottom baseline (like the video)
    double scale=(g_scale>0? g_scale : SymbolInfoDouble(g_symbol,SYMBOL_POINT));
-   int bw=w/MOMN, mid=y+h/2;
+   int bw=w/MOMN, base=y+h;
    for(int i=0;i<MOMN;i++){
-      double dev=g_mval[i];                          // fixed value for this bar
-      int bh=(int)(MathAbs(dev)/scale*(h/2));
-      if(bh>h/2) bh=h/2;
-      color c=dev>=0?clrLime:clrOrange;
+      double v=g_mval[i];                             // fixed value for this bar
+      int bh=(int)(MathAbs(v)/scale*h);
+      if(bh>h) bh=h; if(bh<1) bh=1;
+      color c=v>=0?clrLime:clrOrange;
       int bx=x+i*bw;
-      int by=dev>=0? mid-bh : mid;
-      Box("mom"+(string)i, bx, by, MathMax(bw-1,1), MathMax(bh,1), c, c);
+      Box("mom"+(string)i, bx, base-bh, MathMax(bw,1), bh, c, c);
    }
 }
 
@@ -231,7 +232,7 @@ void DrawPanel()
 
    // REGIME highlighted bar
    string reg=(g_regime==REGIME_RANGE)?"RANGE":(g_regime==REGIME_TREND_UP?"TREND UP":"TREND DOWN");
-   color rc=(g_regime==REGIME_RANGE)?(color)C'90,90,110':(g_regime==REGIME_TREND_UP?(color)C'20,90,40':(color)C'110,35,35');
+   color rc=(g_regime==REGIME_RANGE)?(color)C'35,55,150':(g_regime==REGIME_TREND_UP?(color)C'20,90,40':(color)C'110,35,35');
    Box("regbar",X+10,Y+40,W-20,24,rc,rc);
    Lbl("regime",X+16,Y+45,"REGIME: "+reg,clrWhite,11,"Arial Bold");
 
