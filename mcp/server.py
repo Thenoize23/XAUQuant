@@ -54,11 +54,16 @@ def status() -> dict:
         info = _ensure_connected()
         acct = client.account()
         _state["peak_equity"] = max(_state["peak_equity"], acct["equity"])
+        expert_ok = info.get("trade_expert")
         return {
             "connected": True,
             "symbol": cfg.symbol,
             "timeframe": cfg.timeframe,
             "auto_trade": cfg.auto_trade,
+            "trade_expert": expert_ok,
+            "execution_note": (None if expert_ok else
+                "broker blocks automated execution (trade_expert=False) — "
+                "MCP is signals/plan only; execute manually"),
             "account": acct,
             "peak_equity": _state["peak_equity"],
             "config": cfg.to_dict(),

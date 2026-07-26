@@ -56,6 +56,7 @@ class MT5Client:
             "equity": getattr(info, "equity", None),
             "currency": getattr(info, "currency", None),
             "trade_allowed": getattr(term, "trade_allowed", None),
+            "trade_expert": getattr(info, "trade_expert", None),  # False = broker blocks automation
         }
 
     def shutdown(self):
@@ -136,6 +137,15 @@ class MT5Client:
         return b
 
     # ----------------------------------------------------------- executing ---
+    def _filling(self):
+        """Pick a filling mode the symbol actually supports (avoids retcode 10030)."""
+        fm = mt5.symbol_info(self.cfg.symbol).filling_mode
+        if fm & 1:   # SYMBOL_FILLING_FOK
+            return mt5.ORDER_FILLING_FOK
+        if fm & 2:   # SYMBOL_FILLING_IOC
+            return mt5.ORDER_FILLING_IOC
+        return mt5.ORDER_FILLING_RETURN
+
     def _norm_lot(self, lot: float) -> float:
         si = mt5.symbol_info(self.cfg.symbol)
         step = si.volume_step or 0.01
@@ -159,7 +169,7 @@ class MT5Client:
             "deviation": self.cfg.deviation_points,
             "magic": self.cfg.magic,
             "comment": comment,
-            "type_filling": mt5.ORDER_FILLING_IOC,
+            "type_filling": self._filling(),
             "type_time": mt5.ORDER_TIME_GTC,
         }
         res = mt5.order_send(req)
@@ -194,7 +204,7 @@ class MT5Client:
                 "deviation": self.cfg.deviation_points,
                 "magic": self.cfg.magic,
                 "comment": "xq-close",
-                "type_filling": mt5.ORDER_FILLING_IOC,
+                "type_filling": self._filling(),
                 "type_time": mt5.ORDER_TIME_GTC,
             }
             res = mt5.order_send(req)
