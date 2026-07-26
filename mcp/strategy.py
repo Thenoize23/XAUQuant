@@ -63,10 +63,12 @@ class Action:
 # ------------------------------------------------------------------ signal ---
 def compute_signal(cfg: Config, *, adx_val: float, plus_di: float, minus_di: float,
                    rsi_val: float, bb_mid: float, bb_up: float, bb_low: float,
-                   price: float, mom: float) -> Signal:
-    # --- regime ---
+                   price: float, mom: float, price_prev: float = None) -> Signal:
+    # --- regime: ADX gives strength; direction from DI (laggy) or price slope (reactive) ---
     if adx_val < cfg.adx_trend_level:
         regime = REGIME_RANGE
+    elif cfg.regime_use_slope and price_prev is not None:
+        regime = REGIME_TREND_UP if price >= price_prev else REGIME_TREND_DOWN
     else:
         regime = REGIME_TREND_UP if plus_di >= minus_di else REGIME_TREND_DOWN
 

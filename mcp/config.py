@@ -35,6 +35,8 @@ class Config:
     adx_period: int = 14
     adx_trend_level: float = 25.0
     ma_period: int = 50
+    regime_use_slope: bool = False   # direction from recent price slope (reactive) vs DI (laggy)
+    regime_slope_bars: int = 5       # lookback bars for the slope
 
     # --- confidence signal ---
     rsi_period: int = 14

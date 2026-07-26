@@ -153,9 +153,11 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
         if cooldown > 0:
             cooldown -= 1
 
-        # current regime (for trend-exit)
-        if atr_a[i] and adx_a[i] < cfg.adx_trend_level:
+        # current regime (for trend-exit) — same logic as compute_signal
+        if adx_a[i] < cfg.adx_trend_level:
             regime = "RANGE"
+        elif cfg.regime_use_slope and i >= cfg.regime_slope_bars:
+            regime = REGIME_TREND_UP if c[i] >= c[i - cfg.regime_slope_bars] else REGIME_TREND_DOWN
         else:
             regime = REGIME_TREND_UP if pdi_a[i] >= mdi_a[i] else REGIME_TREND_DOWN
 
@@ -227,9 +229,11 @@ def run(cfg: Config, t, o, h, l, c, initial_balance=10000.0, verbose=True):
             max_vol = max(max_vol, side.volume)
 
         # ---- new entry decision from the signal (only if that side is flat) ----
+        pprev = c[i - cfg.regime_slope_bars] if i >= cfg.regime_slope_bars else c[i]
         sig = compute_signal(
             cfg, adx_val=adx_a[i], plus_di=pdi_a[i], minus_di=mdi_a[i], rsi_val=rsi_a[i],
             bb_mid=bmid[i], bb_up=bup[i], bb_low=blo[i], price=c[i], mom=mom_a[i],
+            price_prev=pprev,
         )
         if not halted and cooldown == 0 and SPREAD_POINTS <= cfg.max_spread_points:
             if not long.positions and cfg.allow_long and sig.buy_conf >= cfg.conf_threshold \
