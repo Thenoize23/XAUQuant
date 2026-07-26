@@ -255,19 +255,29 @@ void DrawPanel()
    Box("csellbg",X+190,Y+122,150,12,BAR,BAR);
    Box("csellbar",X+190,Y+122,(int)(150.0*g_sellConf/100.0),12,clrTomato,clrTomato);
 
-   // LONG basket box
+   // LONG basket box (2-line detail so P/L stays inside)
    int Lv;double Lvol,Lavg,Lpl; BasketStats(POSITION_TYPE_BUY,Lv,Lvol,Lavg,Lpl);
    Box("lbox",X+10,Y+146,W-20,58,SUB,(color)C'30,110,55');
-   Lbl("long",X+16,Y+152,"LONG BASKET",clrLime,11,"Arial Bold");
-   if(Lv>0) Lbl("longd",X+16,Y+178,StringFormat("Lv %d    Avg %.*f    Vol %.2f    P/L %.2f",Lv,g_digits,Lavg,Lvol,Lpl),(Lpl>=0?clrLime:clrTomato),9);
-   else     Lbl("longd",X+16,Y+178,"no basket open",(color)C'120,120,130',9);
+   Lbl("long",X+16,Y+150,"LONG BASKET",clrLime,11,"Arial Bold");
+   if(Lv>0){
+      Lbl("longd", X+16,Y+170,StringFormat("Levels: %d    Avg: %.*f",Lv,g_digits,Lavg),(color)C'200,200,210',9);
+      Lbl("longd2",X+16,Y+186,StringFormat("Vol: %.2f    P/L: %.2f",Lvol,Lpl),(Lpl>=0?clrLime:clrTomato),9);
+   } else {
+      Lbl("longd", X+16,Y+178,"no basket open",(color)C'120,120,130',9);
+      Lbl("longd2",X+16,Y+186,"",clrGray,9);
+   }
 
    // SHORT basket box
    int Sv;double Svol,Savg,Spl; BasketStats(POSITION_TYPE_SELL,Sv,Svol,Savg,Spl);
    Box("sbox",X+10,Y+212,W-20,58,SUB,(color)C'130,40,40');
-   Lbl("short",X+16,Y+218,"SHORT BASKET",clrTomato,11,"Arial Bold");
-   if(Sv>0) Lbl("shortd",X+16,Y+244,StringFormat("Lv %d    Avg %.*f    Vol %.2f    P/L %.2f",Sv,g_digits,Savg,Svol,Spl),(Spl>=0?clrLime:clrTomato),9);
-   else     Lbl("shortd",X+16,Y+244,"no basket open",(color)C'120,120,130',9);
+   Lbl("short",X+16,Y+216,"SHORT BASKET",clrTomato,11,"Arial Bold");
+   if(Sv>0){
+      Lbl("shortd", X+16,Y+236,StringFormat("Levels: %d    Avg: %.*f",Sv,g_digits,Savg),(color)C'200,200,210',9);
+      Lbl("shortd2",X+16,Y+252,StringFormat("Vol: %.2f    P/L: %.2f",Svol,Spl),(Spl>=0?clrLime:clrTomato),9);
+   } else {
+      Lbl("shortd", X+16,Y+244,"no basket open",(color)C'120,120,130',9);
+      Lbl("shortd2",X+16,Y+252,"",clrGray,9);
+   }
 
    // MOMENTUM histogram (taller + live)
    Lbl("momlbl",X+16,Y+282,"MOMENTUM",(color)C'150,150,165',9);
