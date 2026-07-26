@@ -143,6 +143,13 @@ def plan_actions(cfg: Config, sig: Signal, *, bid: float, ask: float,
 
         # 2) EXIT: close whole basket at target
         if b.is_open:
+            # per-basket risk stop (professional %-of-equity cap)
+            if cfg.basket_stop_pct > 0 and equity > 0 and \
+               b.pl <= -cfg.basket_stop_pct / 100.0 * equity:
+                actions.append(Action("CLOSE", b.direction, b.volume,
+                                      f"basket stop {cfg.basket_stop_pct}% of equity"))
+                continue
+
             # trend-exit: don't average against the trend — cut a basket the regime opposes
             if cfg.trend_exit:
                 against = (is_buy and sig.regime == REGIME_TREND_DOWN) or \
