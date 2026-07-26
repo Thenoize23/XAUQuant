@@ -36,7 +36,7 @@ from strategy import compute_signal, plan_actions
 # higher blow-up risk — the circuit-breaker (max_drawdown_pct) is the backstop.
 # signal_mode per instrument (data-driven): gold mean-reverts, BTC trends.
 # M5 timeframe: trend_exit needs a stable regime (M1 flips on noise -> over-cuts).
-GOLD = dict(symbol="XAUUSD", timeframe="M5", base_lot=0.01, lot_mode="multiplier",
+GOLD = dict(symbol="XAUUSD", timeframe="M5", base_lot=0.02, lot_mode="multiplier",
             lot_multiplier=1.5, conf_threshold=15, max_levels=10, step_mode="atr",
             atr_step_mult=1.0, target_money=50.0, max_spread_points=60,
             signal_mode="reversion", trend_exit=True, weekend_flatten=True, max_drawdown_pct=25.0)
