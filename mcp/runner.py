@@ -30,15 +30,18 @@ from config import Config
 from mt5_client import MT5Client, MT5Error
 from strategy import compute_signal, plan_actions
 
-# ---- per-instrument profiles (VIDEO-STYLE: opens often, fixed lots, 10 levels) ----
-# Matches the observed XAU QUANT behaviour: a basket every ~30-60 min, ~10 grid
-# levels of EQUAL lot size (DCA grid, not a doubling martingale), tight spacing.
-GOLD = dict(symbol="XAUUSD", timeframe="M1", base_lot=0.01, lot_mode="fixed",
-            conf_threshold=15, max_levels=10, step_mode="atr", atr_step_mult=0.4,
-            target_money=20.0, max_spread_points=60, weekend_flatten=True, max_drawdown_pct=25.0)
-BTC  = dict(symbol="BTCUSD", timeframe="M1", base_lot=0.10, lot_mode="fixed",
-            conf_threshold=15, max_levels=10, step_mode="atr", atr_step_mult=0.4,
-            target_money=20.0, max_spread_points=2000, weekend_flatten=False, max_drawdown_pct=25.0)
+# ---- per-instrument profiles (MARTINGALE: opens often, lots MULTIPLY per level) ----
+# Aggressive by request: a basket every ~30-60 min, up to 10 grid levels whose lot
+# size grows x1.5 each level (classic martingale averaging-down). Higher return,
+# higher blow-up risk — the circuit-breaker (max_drawdown_pct) is the backstop.
+GOLD = dict(symbol="XAUUSD", timeframe="M1", base_lot=0.01, lot_mode="multiplier",
+            lot_multiplier=1.5, conf_threshold=15, max_levels=10, step_mode="atr",
+            atr_step_mult=0.4, target_money=50.0, max_spread_points=60,
+            weekend_flatten=True, max_drawdown_pct=25.0)
+BTC  = dict(symbol="BTCUSD", timeframe="M1", base_lot=0.10, lot_mode="multiplier",
+            lot_multiplier=1.5, conf_threshold=15, max_levels=10, step_mode="atr",
+            atr_step_mult=0.4, target_money=50.0, max_spread_points=2000,
+            weekend_flatten=False, max_drawdown_pct=25.0)
 
 INTERVAL = int(os.environ.get("XQ_INTERVAL", "30"))          # seconds between checks
 AUTO = os.environ.get("XQ_AUTO_TRADE", "false").lower() in ("1", "true", "yes")
