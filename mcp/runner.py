@@ -111,10 +111,17 @@ def main():
         while True:
             profile = pick_profile(_now())
             if profile is not active:
-                active = profile
                 cfg = build_cfg(profile)
                 client = MT5Client(cfg)
-                info = client.connect()
+                try:
+                    info = client.connect()
+                except MT5Error as e:
+                    print(f"[{_now():%H:%M:%S}] MT5 not ready ({e}) — open MT5, log in, "
+                          f"enable Algo Trading. Retrying in {INTERVAL}s.")
+                    active = None
+                    time.sleep(INTERVAL)
+                    continue
+                active = profile
                 is_demo = "DEMO" in str(info.get("server", "")).upper()
                 if AUTO and not is_demo and not ALLOW_REAL:
                     print(f"[{_now():%H:%M}] REAL account + auto_trade without XQ_ALLOW_REAL "
