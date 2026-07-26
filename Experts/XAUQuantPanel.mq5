@@ -48,6 +48,10 @@ string   g_bannerText="";
 color    g_bannerClr=clrLime;
 int      g_panelBottomY=220;
 
+#define MOMN 40
+double   g_px[MOMN];          // rolling bid samples (one per tick) for the live momentum
+bool     g_pxInit=false;
+
 string GVName() { return "XAUQuantPanel_closed_"+g_symbol+"_"+(string)InpMagic; }
 
 //==================================================================
@@ -79,10 +83,21 @@ void OnTick()  { Refresh(); }
 
 void Refresh()
 {
+   PushTick();
    UpdateSignals();
    DetectEvents();
    if(InpShowPanel) DrawPanel();
    DrawBanner();
+}
+
+//  Sample the live price each tick into a rolling buffer (live momentum source)
+void PushTick()
+{
+   double bid=SymbolInfoDouble(g_symbol,SYMBOL_BID);
+   if(bid<=0) return;
+   if(!g_pxInit){ for(int i=0;i<MOMN;i++) g_px[i]=bid; g_pxInit=true; return; }
+   for(int i=0;i<MOMN-1;i++) g_px[i]=g_px[i+1];
+   g_px[MOMN-1]=bid;
 }
 
 //==================================================================
@@ -188,18 +203,16 @@ void Box(string name,int x,int y,int w,int h,color bg,color border)
 
 void DrawMomentum(int x,int y,int w,int h)
 {
-   int n=30; double m[];
-   // shift 0 includes the CURRENT forming bar -> updates live every tick
-   if(CopyBuffer(h_mom,0,0,n,m)!=n) return;
-   ArraySetAsSeries(m,true);
-   double maxdev=0.001;
-   for(int i=0;i<n;i++) maxdev=MathMax(maxdev,MathAbs(m[i]-100.0));
-   int bw=w/n, mid=y+h/2;
-   for(int i=0;i<n;i++){
-      double dev=m[i]-100.0;
+   // live: each bar = tick-sampled price vs the rolling mean (updates every tick)
+   double mean=0; for(int i=0;i<MOMN;i++) mean+=g_px[i]; mean/=MOMN;
+   double maxdev=SymbolInfoDouble(g_symbol,SYMBOL_POINT);
+   for(int i=0;i<MOMN;i++) maxdev=MathMax(maxdev,MathAbs(g_px[i]-mean));
+   int bw=w/MOMN, mid=y+h/2;
+   for(int i=0;i<MOMN;i++){
+      double dev=g_px[i]-mean;
       int bh=(int)(MathAbs(dev)/maxdev*(h/2));
       color c=dev>=0?clrLime:clrOrange;
-      int bx=x+(n-1-i)*bw;
+      int bx=x+i*bw;
       int by=dev>=0? mid-bh : mid;
       Box("mom"+(string)i, bx, by, MathMax(bw-1,1), MathMax(bh,1), c, c);
    }
