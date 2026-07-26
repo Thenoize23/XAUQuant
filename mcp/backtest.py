@@ -29,10 +29,11 @@ import calendar_filter as cal
 from config import Config
 from strategy import compute_signal, grid_step_price, next_level_lot, REGIME_TREND_UP, REGIME_TREND_DOWN
 
-# --- instrument / account model (XAUUSD defaults) ---
-CONTRACT = 100.0        # 1 lot = 100 oz  -> P/L = (dp) * CONTRACT * lots
-POINT = 0.01
-SPREAD_POINTS = 20      # round-trip spread assumption (points)
+# --- instrument / account model (XAUUSD defaults; override per symbol via env) ---
+import os as _os
+CONTRACT = float(_os.environ.get("XQ_CONTRACT", 100.0))   # XAUUSD=100, DOGUSD=1000
+POINT = float(_os.environ.get("XQ_POINT", 0.01))          # XAUUSD=0.01, DOGUSD=0.00001
+SPREAD_POINTS = float(_os.environ.get("XQ_SPREAD_POINTS", 20))  # round-trip spread (points)
 COMMISSION_PER_LOT = 0.0  # per side, account currency
 LEVERAGE = 100.0
 STOP_OUT_LEVEL = 0.5    # equity < 50% of used margin -> broker stop-out

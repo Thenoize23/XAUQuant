@@ -40,6 +40,7 @@ print(f"\n=== PLACING min-lot BUY on {cfg.symbol} ===")
 res = client.open_order("BUY", cfg.base_lot, "xq-exectest")
 print("  order result:", res)
 
+time.sleep(1.0)   # let MT5 reflect the new position before reading
 b = client.basket("BUY")
 print(f"  basket now: levels={b.levels} vol={b.volume} avg={b.avg_price:.5f} pl={b.pl:.2f}")
 print("  >>> look at MT5 'Trade' tab — the position should be there. Closing in 4s...")
