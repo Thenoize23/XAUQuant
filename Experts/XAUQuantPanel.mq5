@@ -17,7 +17,7 @@ enum ENUM_REGIME { REGIME_RANGE=0, REGIME_TREND_UP=1, REGIME_TREND_DOWN=2 };
 input group "=== Match the runner ==="
 input long   InpMagic          = 990045;      // Magic of the runner's orders
 input string InpSymbolOverride = "";          // Symbol ("" = chart symbol)
-input string InpSignalMode     = "reversion"; // "reversion" (gold) | "trend" (BTC)
+input string InpSignalMode     = "auto";      // "auto" (BTC=trend, gold=reversion) | "reversion" | "trend"
 
 input group "=== Signal display params (match config.py) ==="
 input int    InpADXPeriod      = 14;
@@ -125,7 +125,11 @@ void UpdateSignals()
    double bbSell= (up>mid)? (price-mid)/(up-mid) : 0.0;
    bbBuy=Clamp(bbBuy,0,1.5); bbSell=Clamp(bbSell,0,1.5);
    double rBuy=Clamp((50-rsi)/30,0,1), rSell=Clamp((rsi-50)/30,0,1);
-   if(InpSignalMode=="trend"){ double t; t=bbBuy;bbBuy=bbSell;bbSell=t; t=rBuy;rBuy=rSell;rSell=t; }
+   // resolve mode: "auto" -> trend for crypto, reversion for the rest (matches the runner)
+   string mode=InpSignalMode;
+   if(mode=="auto")
+      mode=(StringFind(g_symbol,"BTC")>=0 || StringFind(g_symbol,"ETH")>=0 || StringFind(g_symbol,"DOG")>=0)?"trend":"reversion";
+   if(mode=="trend"){ double t; t=bbBuy;bbBuy=bbSell;bbSell=t; t=rBuy;rBuy=rSell;rSell=t; }
    double buy =0.6*Clamp(bbBuy,0,1)+0.4*rBuy;
    double sell=0.6*Clamp(bbSell,0,1)+0.4*rSell;
    if(g_regime==REGIME_TREND_UP){ buy*=1.15; sell*=0.60; }
