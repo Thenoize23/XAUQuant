@@ -40,7 +40,8 @@ class MT5Client:
     # ----------------------------------------------------------- lifecycle ---
     def connect(self) -> dict:
         _require()
-        if not mt5.initialize():
+        ok = mt5.initialize(self.cfg.mt5_path) if self.cfg.mt5_path else mt5.initialize()
+        if not ok:
             raise MT5Error(f"mt5.initialize() failed: {mt5.last_error()}")
         if not mt5.symbol_select(self.cfg.symbol, True):
             raise MT5Error(f"cannot select symbol {self.cfg.symbol}: {mt5.last_error()}")

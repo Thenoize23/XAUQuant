@@ -28,6 +28,7 @@ class Config:
     # --- market ---
     symbol: str = "XAUUSD"
     timeframe: str = "M1"          # M1, M5, M15, H1 ...
+    mt5_path: str = ""             # terminal64.exe to connect to ("" = default running one)
 
     # --- direction / regime ---
     allow_long: bool = True

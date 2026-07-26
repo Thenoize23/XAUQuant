@@ -51,6 +51,15 @@ INTERVAL = int(os.environ.get("XQ_INTERVAL", "30"))          # seconds between c
 AUTO = os.environ.get("XQ_AUTO_TRADE", "false").lower() in ("1", "true", "yes")
 ALLOW_REAL = os.environ.get("XQ_ALLOW_REAL", "false").lower() in ("1", "true", "yes")
 
+# per-account overrides (e.g. cent account: XAUUSD.c gold, separate terminal)
+MT5_PATH = os.environ.get("XQ_MT5_PATH", "")
+GOLD["symbol"] = os.environ.get("XQ_GOLD_SYMBOL", GOLD["symbol"])
+BTC["symbol"] = os.environ.get("XQ_BTC_SYMBOL", BTC["symbol"])
+if os.environ.get("XQ_GOLD_LOT"):    GOLD["base_lot"] = float(os.environ["XQ_GOLD_LOT"])
+if os.environ.get("XQ_BTC_LOT"):     BTC["base_lot"] = float(os.environ["XQ_BTC_LOT"])
+if os.environ.get("XQ_GOLD_LEVELS"): GOLD["max_levels"] = int(os.environ["XQ_GOLD_LEVELS"])
+if os.environ.get("XQ_BTC_LEVELS"):  BTC["max_levels"] = int(os.environ["XQ_BTC_LEVELS"])
+
 # per-symbol runtime state (halt + peak equity persist across iterations)
 _state: dict[str, dict] = {}
 
@@ -66,7 +75,7 @@ def pick_profile(now):
 
 
 def build_cfg(profile) -> Config:
-    return Config(auto_trade=AUTO, **profile)
+    return Config(auto_trade=AUTO, mt5_path=MT5_PATH, **profile)
 
 
 def run_once(client: Config, cfg: Config) -> str:
