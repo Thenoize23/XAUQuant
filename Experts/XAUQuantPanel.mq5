@@ -102,8 +102,7 @@ void PushTick()
    g_lastBid=bid;
    for(int i=0;i<MOMN-1;i++) g_mval[i]=g_mval[i+1];
    g_mval[MOMN-1]=delta;
-   // slow-adapting scale: grows on a bigger move, decays very slowly otherwise
-   g_scale=MathMax(g_scale*0.999, MathAbs(delta));
+   if(MathAbs(delta)>g_scale) g_scale=MathAbs(delta);   // scale = biggest move -> no over-zoom
 }
 
 //==================================================================
@@ -209,16 +208,17 @@ void Box(string name,int x,int y,int w,int h,color bg,color border)
 
 void DrawMomentum(int x,int y,int w,int h)
 {
-   // dense bars rising from the bottom baseline (like the video)
+   Box("momcard",x,y,w,h,(color)C'30,32,38',(color)C'55,58,66');   // gray card
    double scale=(g_scale>0? g_scale : SymbolInfoDouble(g_symbol,SYMBOL_POINT));
-   int bw=w/MOMN, base=y+h;
+   int bw=w/MOMN, mid=y+h/2, cap=h/2;
    for(int i=0;i<MOMN;i++){
       double v=g_mval[i];                             // fixed value for this bar
-      int bh=(int)(MathAbs(v)/scale*h);
-      if(bh>h) bh=h; if(bh<1) bh=1;
+      int bh=(int)(MathAbs(v)/scale*(h/2)*3.0);       // zoomed to max
+      if(bh>cap) bh=cap; if(bh<1) bh=1;               // clip at the card edge
       color c=v>=0?clrLime:clrOrange;
       int bx=x+i*bw;
-      Box("mom"+(string)i, bx, base-bh, MathMax(bw,1), bh, c, c);
+      int by=v>=0? mid-bh : mid;
+      Box("mom"+(string)i, bx, by, MathMax(bw-1,1), bh, c, c);
    }
 }
 
