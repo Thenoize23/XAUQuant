@@ -34,14 +34,15 @@ from strategy import compute_signal, plan_actions
 # Aggressive by request: a basket every ~30-60 min, up to 10 grid levels whose lot
 # size grows x1.5 each level (classic martingale averaging-down). Higher return,
 # higher blow-up risk — the circuit-breaker (max_drawdown_pct) is the backstop.
+# signal_mode per instrument (data-driven): gold mean-reverts, BTC trends.
 GOLD = dict(symbol="XAUUSD", timeframe="M1", base_lot=0.01, lot_mode="multiplier",
             lot_multiplier=1.5, conf_threshold=15, max_levels=10, step_mode="atr",
             atr_step_mult=0.4, target_money=50.0, max_spread_points=60,
-            weekend_flatten=True, max_drawdown_pct=25.0)
+            signal_mode="reversion", weekend_flatten=True, max_drawdown_pct=25.0)
 BTC  = dict(symbol="BTCUSD", timeframe="M1", base_lot=0.10, lot_mode="multiplier",
             lot_multiplier=1.5, conf_threshold=15, max_levels=10, step_mode="atr",
             atr_step_mult=0.4, target_money=50.0, max_spread_points=2000,
-            weekend_flatten=False, max_drawdown_pct=25.0)
+            signal_mode="trend", weekend_flatten=False, max_drawdown_pct=25.0)
 
 INTERVAL = int(os.environ.get("XQ_INTERVAL", "30"))          # seconds between checks
 AUTO = os.environ.get("XQ_AUTO_TRADE", "false").lower() in ("1", "true", "yes")

@@ -42,6 +42,7 @@ class Config:
     bb_dev: float = 2.0
     conf_threshold: int = 60       # 0-100 needed to open a basket
     mom_period: int = 14
+    signal_mode: str = "reversion" # "reversion" (buy dips) | "trend" (buy strength)
 
     # --- basket / grid (martingale) ---
     lot_mode: str = "multiplier"   # "fixed" | "multiplier"

@@ -79,6 +79,11 @@ def compute_signal(cfg: Config, *, adx_val: float, plus_di: float, minus_di: flo
     rsi_buy = _clamp((50.0 - rsi_val) / 30.0, 0.0, 1.0)
     rsi_sell = _clamp((rsi_val - 50.0) / 30.0, 0.0, 1.0)
 
+    # trend mode = buy strength / sell weakness (flip the reversion components)
+    if cfg.signal_mode == "trend":
+        bb_buy, bb_sell = bb_sell, bb_buy
+        rsi_buy, rsi_sell = rsi_sell, rsi_buy
+
     buy_raw = 0.6 * _clamp(bb_buy, 0, 1) + 0.4 * rsi_buy
     sell_raw = 0.6 * _clamp(bb_sell, 0, 1) + 0.4 * rsi_sell
 
